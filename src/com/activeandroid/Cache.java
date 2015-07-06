@@ -16,132 +16,144 @@ package com.activeandroid;
  * limitations under the License.
  */
 
+import android.app.Application;
+import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
+import com.activeandroid.serializer.TypeSerializer;
+import com.activeandroid.util.Log;
+
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
-import android.app.Application;
-import android.content.Context;
-import android.database.sqlite.SQLiteDatabase;
-
-import com.activeandroid.serializer.TypeSerializer;
-import com.activeandroid.util.Log;
-
 public final class Cache {
-	//////////////////////////////////////////////////////////////////////////////////////
-	// PRIVATE MEMBERS
-	//////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////
+    // PRIVATE MEMBERS
+    //////////////////////////////////////////////////////////////////////////////////////
 
-	private static Context sContext;
+    private static Context sContext;
 
-	private static ModelInfo sModelInfo;
-	private static DatabaseHelper sDatabaseHelper;
+    private static ModelInfo sModelInfo;
+    private static DatabaseHelper sDatabaseHelper;
 
-	private static Set<Model> sEntities;
+    private static Set<Model> sEntities;
 
-	private static boolean sIsInitialized = false;
+    private static boolean sIsInitialized = false;
+    private static boolean sEnabled = false;
 
-	//////////////////////////////////////////////////////////////////////////////////////
-	// CONSTRUCTORS
-	//////////////////////////////////////////////////////////////////////////////////////
+    public static boolean isEnabled() {
+        return sEnabled;
+    }
 
-	private Cache() {
-	}
+    public static void setEnabled(boolean enabled) {
+        sEnabled = enabled;
+    }
 
-	//////////////////////////////////////////////////////////////////////////////////////
-	// PUBLIC METHODS
-	//////////////////////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////////////////////
+    // CONSTRUCTORS
+    //////////////////////////////////////////////////////////////////////////////////////
 
-	public static synchronized void initialize(Application application) {
-		if (sIsInitialized) {
-			Log.v("ActiveAndroid already initialized.");
-			return;
-		}
+    private Cache() {
+    }
 
-		sContext = application;
+    //////////////////////////////////////////////////////////////////////////////////////
+    // PUBLIC METHODS
+    //////////////////////////////////////////////////////////////////////////////////////
 
-		sModelInfo = new ModelInfo(application);
-		sDatabaseHelper = new DatabaseHelper(sContext);
+    public static synchronized void initialize(Application application) {
+        if (sIsInitialized) {
+            Log.v("ActiveAndroid already initialized.");
+            return;
+        }
 
-		sEntities = new HashSet<Model>();
+        sContext = application;
 
-		openDatabase();
+        sModelInfo = new ModelInfo(application);
+        sDatabaseHelper = new DatabaseHelper(sContext);
 
-		sIsInitialized = true;
+        sEntities = new HashSet<Model>();
 
-		Log.v("ActiveAndroid initialized succesfully.");
-	}
+        openDatabase();
 
-	public static synchronized void clear() {
-		sEntities = new HashSet<Model>();
-		Log.v("Cache cleared.");
-	}
+        sIsInitialized = true;
 
-	public static synchronized void dispose() {
-		closeDatabase();
-		
-		sEntities = null;
-		sModelInfo = null;
-		sDatabaseHelper = null;
+        Log.v("ActiveAndroid initialized succesfully.");
+    }
 
-		sIsInitialized = false;
+    public static synchronized void clear() {
+        sEntities = new HashSet<Model>();
+        Log.v("Cache cleared.");
+    }
 
-		Log.v("ActiveAndroid disposed. Call initialize to use library.");
-	}
+    public static synchronized void dispose() {
+        closeDatabase();
 
-	// Database access
+        sEntities = null;
+        sModelInfo = null;
+        sDatabaseHelper = null;
 
-	public static synchronized SQLiteDatabase openDatabase() {
-		return sDatabaseHelper.getWritableDatabase();
-	}
+        sIsInitialized = false;
 
-	public static synchronized void closeDatabase() {
-		sDatabaseHelper.close();
-	}
+        Log.v("ActiveAndroid disposed. Call initialize to use library.");
+    }
 
-	// Context access
+    // Database access
 
-	public static Context getContext() {
-		return sContext;
-	}
+    public static synchronized SQLiteDatabase openDatabase() {
+        return sDatabaseHelper.getWritableDatabase();
+    }
 
-	// Entity cache
+    public static synchronized void closeDatabase() {
+        sDatabaseHelper.close();
+    }
 
-	public static synchronized void addEntity(Model entity) {
-		sEntities.add(entity);
-	}
+    // Context access
 
-	public static synchronized Model getEntity(Class<? extends Model> type, long id) {
-		for (Model entity : sEntities) {
-			if (entity != null && entity.getClass() != null && entity.getClass() == type && entity.getId() != null
-					&& entity.getId() == id) {
+    public static Context getContext() {
+        return sContext;
+    }
 
-				return entity;
-			}
-		}
+    // Entity cache
 
-		return null;
-	}
+    public static synchronized void addEntity(Model entity) {
+        if (sEnabled) {
+            sEntities.add(entity);
+        }
+    }
 
-	public static synchronized void removeEntity(Model entity) {
-		sEntities.remove(entity);
-	}
+    public static synchronized Model getEntity(Class<? extends Model> type, long id) {
+        for (Model entity : sEntities) {
+            if (entity != null && entity.getClass() != null && entity.getClass() == type && entity.getId() != null
+                    && entity.getId() == id) {
 
-	// Model cache
+                return entity;
+            }
+        }
 
-	public static synchronized Collection<TableInfo> getTableInfos() {
-		return sModelInfo.getTableInfos();
-	}
+        return null;
+    }
 
-	public static synchronized TableInfo getTableInfo(Class<? extends Model> type) {
-		return sModelInfo.getTableInfo(type);
-	}
+    public static synchronized void removeEntity(Model entity) {
+        if (sEnabled) {
+            sEntities.remove(entity);
+        }
+    }
 
-	public static synchronized TypeSerializer getParserForType(Class<?> type) {
-		return sModelInfo.getTypeSerializer(type);
-	}
+    // Model cache
 
-	public static synchronized String getTableName(Class<? extends Model> type) {
-		return sModelInfo.getTableInfo(type).getTableName();
-	}
+    public static synchronized Collection<TableInfo> getTableInfos() {
+        return sModelInfo.getTableInfos();
+    }
+
+    public static synchronized TableInfo getTableInfo(Class<? extends Model> type) {
+        return sModelInfo.getTableInfo(type);
+    }
+
+    public static synchronized TypeSerializer getParserForType(Class<?> type) {
+        return sModelInfo.getTypeSerializer(type);
+    }
+
+    public static synchronized String getTableName(Class<? extends Model> type) {
+        return sModelInfo.getTableInfo(type).getTableName();
+    }
 }
